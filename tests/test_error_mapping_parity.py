@@ -12,10 +12,6 @@ packages stay at arm's length).
 from __future__ import annotations
 
 import pytest
-from bili_unit.fetching import FetchingError
-from bili_unit.fetching._adapter_core import map_bilibili_errors
-from bili_unit.fetching._error_pack import ErrorPack, fetching_exception_from_pack
-from bili_unit.fetching.runner._failure import classify_fetching_exception
 from bilibili_api.exceptions import (
     ApiException,
     ArgsException,
@@ -27,6 +23,26 @@ from bilibili_api.exceptions import (
 
 from bili_worker.errors import download_error_pack, map_sdk_exception, protocol_error_pack
 from bili_worker.protocol import decode_frame, encode_frame
+
+# bili_unit is only available when running tests from the main repo (integration).
+# In standalone worker CI, parity tests that need bili_unit are skipped.
+try:
+    from bili_unit.fetching import FetchingError
+    from bili_unit.fetching._adapter_core import map_bilibili_errors
+    from bili_unit.fetching._error_pack import ErrorPack, fetching_exception_from_pack
+    from bili_unit.fetching.runner._failure import classify_fetching_exception
+except ImportError:
+    FetchingError = None  # type: ignore[assignment]
+    map_bilibili_errors = None  # type: ignore[assignment]
+    ErrorPack = None  # type: ignore[assignment]
+    fetching_exception_from_pack = None  # type: ignore[assignment]
+    classify_fetching_exception = None  # type: ignore[assignment]
+
+_bili_unit_available = FetchingError is not None
+_skip_if_no_bili_unit = pytest.mark.skipif(
+    not _bili_unit_available,
+    reason="bili_unit not installed (standalone worker CI); parity tests run in main repo CI",
+)
 
 _LABEL = "videos"
 
@@ -49,7 +65,6 @@ _SDK_CASES: list[BaseException] = [
     RuntimeError("totally unexpected"),
 ]
 
-
 async def _direct(sdk_exc: BaseException) -> FetchingError:
     """Pre-refactor path: SDK exc -> map_bilibili_errors -> fetching exception."""
     with pytest.raises(FetchingError) as ei:
@@ -57,8 +72,8 @@ async def _direct(sdk_exc: BaseException) -> FetchingError:
             raise sdk_exc
     return ei.value
 
-
 @pytest.mark.parametrize("sdk_exc", _SDK_CASES)
+@_skip_if_no_bili_unit
 async def test_worker_pack_matches_direct_mapping(sdk_exc: BaseException) -> None:
     direct_exc = await _direct(sdk_exc)
     pack = map_sdk_exception(_LABEL, sdk_exc)
@@ -67,8 +82,8 @@ async def test_worker_pack_matches_direct_mapping(sdk_exc: BaseException) -> Non
     assert pack["type"] == type(direct_exc).__name__
     assert pack["message"] == str(direct_exc)
 
-
 @pytest.mark.parametrize("sdk_exc", _SDK_CASES)
+@_skip_if_no_bili_unit
 async def test_full_ipc_roundtrip_classification(sdk_exc: BaseException) -> None:
     """worker map -> JSON frame -> main rebuild -> classify == direct classify."""
     direct_exc = await _direct(sdk_exc)
@@ -84,14 +99,13 @@ async def test_full_ipc_roundtrip_classification(sdk_exc: BaseException) -> None
     assert str(rebuilt) == str(direct_exc)
     assert classify_fetching_exception(rebuilt) == baseline
 
-
 def test_response_code_carries_diagnostic_code() -> None:
     assert map_sdk_exception(_LABEL, ResponseCodeException(412, "x", {}))["code"] == 412
     assert map_sdk_exception(_LABEL, ResponseCodeException(53013, "x", {}))["code"] == 53013
     assert map_sdk_exception(_LABEL, NetworkException(404, "x"))["code"] == 404
     assert map_sdk_exception(_LABEL, TimeoutError())["code"] is None
 
-
+@_skip_if_no_bili_unit
 def test_download_error_pack_is_permanent() -> None:
     """Audio download failure maps to permanent, not the retryable default (§6.4/§7.2)."""
     pack = download_error_pack("videos: no audio stream")
@@ -101,7 +115,7 @@ def test_download_error_pack_is_permanent() -> None:
     rebuilt = fetching_exception_from_pack(ErrorPack.from_dict(pack))
     assert classify_fetching_exception(rebuilt).name == "PERMANENT"
 
-
+@_skip_if_no_bili_unit
 def test_protocol_error_pack_shape() -> None:
     pack = protocol_error_pack("unknown op: frobnicate")
     assert pack["type"] == "protocol_error"
