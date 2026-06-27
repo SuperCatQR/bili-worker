@@ -117,15 +117,6 @@ def download_error_pack(message: str) -> dict[str, Any]:
 
 
 def protocol_error_pack(message: str) -> dict[str, Any]:
-n
-def credential_error_pack(exc: Exception) -> dict[str, Any]:
-    """Error pack for credential-loading failures (MissingCredentialsError, EnvFileError).
-
-    These are worker-internal errors — the .env read failed before any SDK call.
-    Mapped to AuthError/permanent so the main process treats them as non-retryable
-    auth failures (contract §6.5: missing BILI_SESSDATA → auth_error/permanent).
-    """
-    return _pack("AuthError", "permanent", str(exc), None)
     """Error pack for a protocol-level fault (unknown op / bad frame / missing field, §4.2)."""
     return {
         "type": "protocol_error",
@@ -134,6 +125,39 @@ def credential_error_pack(exc: Exception) -> dict[str, Any]:
         "message": message,
         "retryable_hint": False,
     }
+
+
+# Sensitive substrings that must not appear in credential error messages (§8).
+_CREDENTIAL_SENSITIVE_SUBSTRINGS: tuple[str, ...] = (
+    "sessdata", "bili_jct", "buvid3", "buvid4", "dedeuserid", "ac_time_value",
+)
+
+
+def _sanitize_credential_message(message: str) -> str:
+    """Redact a message if it contains credential-sensitive substrings.
+
+    Inlined here (rather than importing from ``credential.py``) to avoid a
+    circular import — ``credential.py`` may import from ``errors.py``.
+    """
+    lower = message.lower()
+    for keyword in _CREDENTIAL_SENSITIVE_SUBSTRINGS:
+        if keyword in lower:
+            return "[REDACTED credential]"
+    return message
+
+
+def credential_error_pack(exc: Exception) -> dict[str, Any]:
+    """Error pack for credential-loading failures (MissingCredentialsError, EnvFileError).
+
+    These are worker-internal errors — the .env read failed before any SDK call.
+    Mapped to AuthError/permanent so the main process treats them as non-retryable
+    auth failures (contract §6.5: missing BILI_SESSDATA → auth_error/permanent).
+
+    The message is sanitised via ``_sanitize_credential_message`` before packaging,
+    so file content fragments that leak into ``OSError``/``UnicodeDecodeError``
+    strings are redacted.
+    """
+    return _pack("AuthError", "permanent", _sanitize_credential_message(str(exc)), None)
 
 
 __all__ = [
