@@ -1,0 +1,26 @@
+[project]
+name = "bili-worker"
+version = "0.1.0"
+description = "GPL-3.0 worker process that isolates all bilibili-api SDK calls behind an arm's-length stdio JSON protocol (F2 process isolation for bili-unit)."
+requires-python = ">=3.12"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+authors = [{ name = "ChosenEcho" }]
+dependencies = [
+    "bilibili-api-python~=17.0",
+    "aiohttp>=3.9.0",
+]
+
+[project.optional-dependencies]
+anti-detect = ["curl_cffi>=0.7.0"]
+
+[project.scripts]
+bili-worker = "bili_worker.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["bili_worker"]
+exclude = ["tests"]
