@@ -12,6 +12,10 @@ packages stay at arm's length).
 from __future__ import annotations
 
 import pytest
+from bili_unit.fetching import FetchingError
+from bili_unit.fetching._adapter_core import map_bilibili_errors
+from bili_unit.fetching._error_pack import ErrorPack, fetching_exception_from_pack
+from bili_unit.fetching.runner._failure import classify_fetching_exception
 from bilibili_api.exceptions import (
     ApiException,
     ArgsException,
@@ -21,10 +25,6 @@ from bilibili_api.exceptions import (
     ResponseCodeException,
 )
 
-from bili_unit.fetching import FetchingError
-from bili_unit.fetching._adapter_core import map_bilibili_errors
-from bili_unit.fetching._error_pack import ErrorPack, fetching_exception_from_pack
-from bili_unit.fetching.runner._failure import classify_fetching_exception
 from bili_worker.errors import download_error_pack, map_sdk_exception, protocol_error_pack
 from bili_worker.protocol import decode_frame, encode_frame
 

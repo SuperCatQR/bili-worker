@@ -26,7 +26,6 @@ from bili_worker.protocol import (
     ok_response,
 )
 
-
 async def handle_handshake(_params: dict[str, Any]) -> dict[str, Any]:
     """Return worker identity and protocol version (contract §5.1)."""
     return {
@@ -34,21 +33,17 @@ async def handle_handshake(_params: dict[str, Any]) -> dict[str, Any]:
         "protocol_version": PROTOCOL_VERSION,
     }
 
-
 async def handle_shutdown(_params: dict[str, Any]) -> dict[str, Any]:
     """Acknowledge shutdown request (contract §5.2)."""
     return {"acknowledged": True}
-
 
 async def handle_ping(_params: dict[str, Any]) -> dict[str, Any]:
     """Heartbeat / liveness check (contract §5.3)."""
     return {"pong": True}
 
-
 async def handle_unknown_op(op: str, _params: dict[str, Any]) -> dict[str, Any]:
     """Return a protocol_error for unknown ops (contract §4.2)."""
     raise ProtocolError(f"unknown op: {op}")
-
 
 #: Op dispatch table.  Keys are the op string from the request envelope.
 #: Handlers receive the ``params`` dict and return a ``data`` dict (for ok
@@ -60,7 +55,6 @@ _OP_TABLE: dict[str, Any] = {
     "shutdown": handle_shutdown,
     "ping": handle_ping,
 }
-
 
 async def dispatch(req: Request) -> dict[str, Any]:
     """Route a request to its handler and return the response envelope.
@@ -78,7 +72,6 @@ async def dispatch(req: Request) -> dict[str, Any]:
     except Exception as exc:
         return error_response(req.id, map_sdk_exception(req.op, exc))
 
-
 async def run_loop() -> None:
     """Read stdin line-by-line, dispatch, write stdout line-by-line.
 
@@ -88,7 +81,8 @@ async def run_loop() -> None:
     """
     reader = asyncio.StreamReader()
     protocol = asyncio.StreamReaderProtocol(reader)
-    transport, _ = await asyncio.get_event_loop().connect_read_pipe(
+    loop = asyncio.get_running_loop()
+    transport, _ = await loop.connect_read_pipe(
         lambda: protocol, sys.stdin
     )
 
@@ -121,14 +115,12 @@ async def run_loop() -> None:
     finally:
         transport.close()
 
-
 def main() -> None:
     """Entry point registered as ``bili-worker`` in ``[project.scripts]``."""
     try:
         asyncio.run(run_loop())
     except KeyboardInterrupt:
         pass
-
 
 if __name__ == "__main__":
     main()
