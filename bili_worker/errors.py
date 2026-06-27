@@ -117,6 +117,15 @@ def download_error_pack(message: str) -> dict[str, Any]:
 
 
 def protocol_error_pack(message: str) -> dict[str, Any]:
+n
+def credential_error_pack(exc: Exception) -> dict[str, Any]:
+    """Error pack for credential-loading failures (MissingCredentialsError, EnvFileError).
+
+    These are worker-internal errors — the .env read failed before any SDK call.
+    Mapped to AuthError/permanent so the main process treats them as non-retryable
+    auth failures (contract §6.5: missing BILI_SESSDATA → auth_error/permanent).
+    """
+    return _pack("AuthError", "permanent", str(exc), None)
     """Error pack for a protocol-level fault (unknown op / bad frame / missing field, §4.2)."""
     return {
         "type": "protocol_error",
@@ -129,6 +138,7 @@ def protocol_error_pack(message: str) -> dict[str, Any]:
 
 __all__ = [
     "Classification",
+    "credential_error_pack",
     "download_error_pack",
     "map_sdk_exception",
     "protocol_error_pack",
