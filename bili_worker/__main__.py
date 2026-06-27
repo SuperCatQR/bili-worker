@@ -12,6 +12,7 @@ stdout. All logging goes to stderr so it never contaminates the protocol stream.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import sys
 from typing import Any
 
@@ -118,10 +119,8 @@ async def run_loop() -> None:
 
 def main() -> None:
     """Entry point registered as ``bili-worker`` in ``[project.scripts]``."""
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(run_loop())
-    except KeyboardInterrupt:
-        pass
 
 if __name__ == "__main__":
     main()
