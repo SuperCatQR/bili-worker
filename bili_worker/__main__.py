@@ -26,6 +26,7 @@ from bili_worker.protocol import (
     ok_response,
 )
 
+
 async def handle_handshake(_params: dict[str, Any]) -> dict[str, Any]:
     """Return worker identity and protocol version (contract §5.1)."""
     return {
