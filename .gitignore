@@ -1,0 +1,32 @@
+# Secrets
+.env
+
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Test / coverage artifacts
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Runtime data
+data/
+output/
+temp/
+error/
+
+# Tool / IDE metadata
+.claude/
+.codex/
+.codegraph/
+.workbuddy/
+.reasonix/
