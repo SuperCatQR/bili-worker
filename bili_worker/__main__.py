@@ -25,10 +25,8 @@ from bili_worker.credential import (
     CredentialError,
     EnvFileError,
     MissingCredentialsError,
-    credential_get,
     credential_open,
     credential_resolve,
-    load_env,
 )
 from bili_worker.errors import protocol_error_pack
 from bili_worker.protocol import (

@@ -12,10 +12,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from bilibili_api import user
-from bilibili_api.article import Article, ArticleList
-from bilibili_api.channel_series import ChannelOrder
-from bilibili_api.opus import Opus
-from bilibili_api.video import Video
 
 from .sdk_adapter import (
     _extract_bvids_from_videos,
