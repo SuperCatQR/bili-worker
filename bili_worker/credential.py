@@ -259,8 +259,51 @@ def sanitize_message(message: str) -> str:
     return message
 
 
+# ---------------------------------------------------------------------------
+# CredentialPool — async-friendly pool wrapper (Step 3+)
+# ---------------------------------------------------------------------------
+
+
+class CredentialPool:
+    """Async-friendly credential pool used by the op dispatch loop.
+
+    Wraps the module-level credential functions with async-compatible
+    interfaces that the ``__main__`` dispatch handlers expect.
+    """
+
+    def __init__(self) -> None:
+        self._opened = False
+
+    async def open(self, *, reload_env: bool = False) -> tuple[str, bool]:
+        """Load .env, construct Credential, store in pool, return (ref, has_sessdata)."""
+        if reload_env:
+            credential_pool_clear()
+        result = credential_open()
+        return result["credential_ref"], result["has_sessdata"]
+
+    async def status(self, ref: str) -> tuple[bool, str]:
+        """Check if a credential_ref is valid."""
+        try:
+            cred = credential_get(ref)
+            has_sessdata = bool(cred.sessdata)
+            return has_sessdata, "valid" if has_sessdata else "no sessdata"
+        except KeyError:
+            return False, f"credential_ref {ref!r} not found"
+
+    async def resolve(self, ref: str | None) -> Credential | None:
+        """Resolve a credential_ref to a Credential, or None for anonymous."""
+        return credential_resolve(ref)
+
+    def add(self, cred: Credential) -> str:
+        """Add an existing Credential to the pool, return its ref."""
+        ref = _next_credential_ref()
+        _credential_pool[ref] = cred
+        return ref
+
+
 __all__ = [
     "CredentialError",
+    "CredentialPool",
     "EnvFileError",
     "MissingCredentialsError",
     "build_credential",
