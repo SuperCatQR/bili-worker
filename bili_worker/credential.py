@@ -259,8 +259,49 @@ def sanitize_message(message: str) -> str:
     return message
 
 
+# ---------------------------------------------------------------------------
+# CredentialPool — async-friendly pool wrapper used by the op dispatch loop
+# ---------------------------------------------------------------------------
+
+
+class CredentialPool:
+    """Async-friendly credential pool used by the ``__main__`` dispatch loop.
+
+    Wraps the module-level credential functions with async-compatible
+    interfaces that the op handlers expect. The underlying storage is the
+    module-level ``_credential_pool`` / ``_next_credential_ref`` machinery, so
+    a credential opened via :func:`credential_open` (or added via QR login) is
+    visible here and vice-versa.
+    """
+
+    async def open(self, *, env_path: str | Path | None = None) -> tuple[str, bool]:
+        """Load .env, construct Credential, store in pool, return (ref, has_sessdata)."""
+        result = credential_open(env_path=env_path)
+        return result["credential_ref"], result["has_sessdata"]
+
+    async def status(self, ref: str) -> tuple[bool, str]:
+        """Check whether a credential_ref resolves to a live Credential."""
+        try:
+            cred = credential_get(ref)
+        except KeyError:
+            return False, f"credential_ref {ref!r} not found in pool"
+        has_sessdata = bool(getattr(cred, "sessdata", None))
+        return has_sessdata, "valid" if has_sessdata else "no sessdata"
+
+    async def resolve(self, ref: str | None) -> Credential | None:
+        """Resolve a credential_ref to a Credential, or None for anonymous."""
+        return credential_resolve(ref)
+
+    def add(self, cred: Credential) -> str:
+        """Add an already-constructed Credential (e.g. from QR login) and return its ref."""
+        ref = _next_credential_ref()
+        _credential_pool[ref] = cred
+        return ref
+
+
 __all__ = [
     "CredentialError",
+    "CredentialPool",
     "EnvFileError",
     "MissingCredentialsError",
     "build_credential",
